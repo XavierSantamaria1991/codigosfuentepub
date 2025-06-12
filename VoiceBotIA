@@ -1,0 +1,120 @@
+import openai
+import pyttsx3
+import speech_recognition as sr
+
+# Tu API Key de OpenAI
+openai.api_key = "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"  # Reemplaza con tu clave real
+
+# Texto a voz
+def speak(text):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 150)
+    engine.setProperty('volume', 0.9)
+    print("IA:", text)
+    engine.say(text)
+    engine.runAndWait()
+    engine.stop()
+
+# Reconocimiento de voz
+recognizer = sr.Recognizer()
+
+def recognize_audio(intentos=2):
+    for intento in range(intentos):
+        with sr.Microphone() as source:
+            print("\nHabla ahora (di 'salir' para terminar)...")
+            audio = recognizer.listen(source)
+        try:
+            text = recognizer.recognize_google(audio, language='es-ES')
+            print("Tú:", text)
+            return text.lower()
+        except:
+            print("No se entendió. Intenta de nuevo.")
+            if intento == intentos - 1:
+                return None
+
+# Comunicación con OpenAI GPT-4.1 nano
+def get_ai_response(messages):
+    try:
+        print("🔁 Enviando solicitud a OpenAI (GPT-4.1 nano)...")
+        response = openai.ChatCompletion.create(
+            model="gpt-4-1106-preview",
+            messages=messages,
+            temperature=0.4
+        )
+        print("✅ Respuesta recibida.")
+        content = response.choices[0].message["content"].strip()
+        content = content.replace("pesos", "dólares")
+        return content
+    except Exception as e:
+        print(f"❌ Error con OpenAI: {e}")
+        return "Lo siento, no pude obtener respuesta en este momento."
+
+# Flujo principal del asistente
+def main():
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Eres Intelcobro IA, un asistente de cobranza profesional y empático. "
+                "Estás llamando al señor Xavier Asmal por una deuda de 3000 dólares con 90 días de mora. "
+                "Habla con respeto, claridad y evita respuestas largas. Sé directo pero amable. "
+                "Si el cliente da un motivo de retraso, responde con empatía y busca obtener una fecha o forma de pago. "
+                "Puedes preguntar si desea que se le recuerde unos días antes del compromiso. "
+                "Después de su respuesta a esa pregunta, finaliza agradeciendo y despidiéndote de forma breve y profesional. "
+                "Nunca menciones pesos. Siempre usa la palabra dólares."
+            )
+        }
+    ]
+
+    saludo = "Buenos días, le saluda Intelcobro IA, un sistema automatizado de cobranza. ¿Con el señor Xavier Asmal por favor?"
+    speak(saludo)
+    messages.append({"role": "assistant", "content": saludo})
+
+    user_input = recognize_audio()
+    if not user_input or "salir" in user_input:
+        speak("Gracias por su tiempo. Que tenga un buen día.")
+        return
+    messages.append({"role": "user", "content": user_input})
+
+    if any(x in user_input for x in ["sí", "soy yo", "dígame", "habla xavier", "yo mismo"]):
+        aviso = "Gracias. Le informo que mantiene una deuda pendiente de tres mil dólares con noventa días de mora. ¿Ha tenido algún inconveniente para realizar el pago?"
+        speak(aviso)
+        messages.append({"role": "assistant", "content": aviso})
+
+        user_input = recognize_audio()
+        if not user_input or "salir" in user_input:
+            speak("Gracias por su tiempo. Que tenga un buen día.")
+            return
+        messages.append({"role": "user", "content": user_input})
+
+        respuesta = get_ai_response(messages)
+        speak(respuesta)
+        messages.append({"role": "assistant", "content": respuesta})
+
+        user_input = recognize_audio()
+        if not user_input or "salir" in user_input:
+            speak("Gracias por su tiempo. Que tenga un buen día.")
+            return
+        messages.append({"role": "user", "content": user_input})
+
+        respuesta = get_ai_response(messages)
+        speak(respuesta)
+        messages.append({"role": "assistant", "content": respuesta})
+
+        if "recordar" in respuesta or "le gustaría que le enviemos un recordatorio" in respuesta or "recordatorio" in respuesta:
+            while True:
+                user_input = recognize_audio()
+                if user_input:
+                    messages.append({"role": "user", "content": user_input})
+                    respuesta = get_ai_response(messages)
+                    speak(respuesta)
+                    messages.append({"role": "assistant", "content": respuesta})
+                    break
+
+        
+
+    else:
+        speak("Gracias por su atención. Nos comunicaremos en otro momento. Hasta luego.")
+
+if __name__ == "__main__":
+    main()
